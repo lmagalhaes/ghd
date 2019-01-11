@@ -2,6 +2,12 @@ from github import Github
 from github.GithubException import UnknownObjectException
 
 
+available_teams_list = {
+    'admin': ['admin', 'admin'],
+    'engineering': ['engineering', 'push'],
+    'tech champions': ['tech champions', 'admin'],
+}
+
 def list_companies_repo(company):
     repos = company.get_repos(type='private')
     for repo in repos:
@@ -16,43 +22,35 @@ def create_repo(company, repo_name):
     return repo
 
 
-def run():
-    allowed_team = [
-        'tech champions',
-        'admin',
-        'engineering'
+def add_teams_to_repo(company, repo):
+    teams = list(filter(lambda team: team.name.lower() in available_teams_list.keys(), company.get_teams()))
+    teams_permission_list = [
+        create_team_permission(*team) for team in available_teams_list.values()
     ]
+    print(teams)
+    print(teams_permission_list)
+    # # add_teams_to_repo(repo)
+    #
+    # for team in teams:
+    #     team.add_to_repos(repo)
+    #     team.set_repo_permission(repo, permission=team_permissions[team.name.lower()])
 
-    team_permissions = {
-        'tech champions': 'admin',
-        'admin': 'admin',
-        'engineering': 'push'
+
+def create_team_permission(team_name, permission):
+    return {
+        'name': team_name,
+        'permission': permission
     }
 
+
+def run():
     repo_name = "test_repo"
     git = Github(open('.ghd_token').read().strip())
     company = git.get_organization("theiconic")
 
-    repo = create_repo(company, repo_name)
-    # repo = git.get_repo("lmagalhaes/teste_repo")
-    # user = git.get_user('pcelta')
-    # repo.add_to_collaborators(user, permission='admin')
-
-    teams = list(filter(lambda team: team.name.lower() in allowed_team, company.get_teams()))
-
-    for team in teams:
-        team.add_to_repos(repo)
-
-    # print(list(team))
-    # brands_reco = company.get_repo("brands-recommendation")
-    # collaboratos = brands_reco.get_teams()
-    #
-    # for collaborator in collaboratos:
-    #     print(collaborator)
-    # brands_reco.get_te
-
-    # test_repo = git.get_repo('teste_repo')
-    # test_repo.add_to_collaborator()
+    #new_repo = create_repo(company, repo_name)
+    new_repo = company.get_repo(repo_name)
+    add_teams_to_repo(company, new_repo)
 
 
 if __name__ == '__main__':
