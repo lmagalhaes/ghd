@@ -8,6 +8,7 @@ available_teams_list = {
     'tech champions': ['tech champions', 'admin'],
 }
 
+
 def list_companies_repo(company):
     repos = company.get_repos(type='private')
     for repo in repos:
@@ -18,29 +19,30 @@ def create_repo(company, repo_name):
     try:
         repo = company.get_repo(repo_name)
     except UnknownObjectException as exc:
-        repo = company.create_repo(repo_name, private=True)
+        repo = company.create_repo(repo_name, private=True, auto_init=True)
+        teams = company.get_teams()
+        add_teams_to_repo(repo=repo, teams=teams)
     return repo
 
 
-def add_teams_to_repo(company, repo):
-    teams = list(filter(lambda team: team.name.lower() in available_teams_list.keys(), company.get_teams()))
-    teams_permission_list = [
-        create_team_permission(*team) for team in available_teams_list.values()
+def add_teams_to_repo(repo, teams):
+    all_teams = list(filter(lambda team: team.name.lower() in available_teams_list.keys(), teams))
+    teams_permission_list = get_teams_permission(all_teams)
+
+    for item in teams_permission_list:
+        team = item.get('team')
+        team.add_to_repos(repo)
+        team.set_repo_permission(repo, permission=item.get('permission'))
+
+
+def get_teams_permission(teams):
+    return [
+        {
+            'team': team,
+            'permission': available_teams_list.get(team.name.lower())[1]
+        }
+        for team in teams if team.name.lower() in available_teams_list.keys()
     ]
-    print(teams)
-    print(teams_permission_list)
-    # # add_teams_to_repo(repo)
-    #
-    # for team in teams:
-    #     team.add_to_repos(repo)
-    #     team.set_repo_permission(repo, permission=team_permissions[team.name.lower()])
-
-
-def create_team_permission(team_name, permission):
-    return {
-        'name': team_name,
-        'permission': permission
-    }
 
 
 def run():
@@ -48,9 +50,13 @@ def run():
     git = Github(open('.ghd_token').read().strip())
     company = git.get_organization("theiconic")
 
-    #new_repo = create_repo(company, repo_name)
-    new_repo = company.get_repo(repo_name)
-    add_teams_to_repo(company, new_repo)
+    repo = create_repo(company, repo_name)
+    master = repo.get_branch('master')
+
+    master.edit_protection(
+        dismiss_stale_reviews=True,
+        required_approving_review_count=1
+    )
 
 
 if __name__ == '__main__':
