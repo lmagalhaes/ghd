@@ -1,7 +1,10 @@
 from github import Github
 from github.GithubException import UnknownObjectException
+import requests
+import click
 
 
+### github related
 available_teams_list = {
     'admin': ['admin', 'admin'],
     'engineering': ['engineering', 'push'],
@@ -45,18 +48,70 @@ def get_teams_permission(teams):
     ]
 
 
-def run():
-    repo_name = "test_repo"
-    git = Github(open('.ghd_token').read().strip())
+### codeclimate related
+def get_codeclimate_organization():
+    response = requests.get('https://api.codeclimate.com/v1/orgs', headers={
+        'Accept': 'application/vnd.api+json',
+        'Authorization': 'Token token={}'.format(open('.cc_token').read().strip())
+    })
+
+    return response.json()
+
+
+def add_repo_to_codeclimate(organization, repo):
+    payload = {
+        "data": {
+            "type": "repos",
+            "attributes": {
+                "url": repo.svn_url
+            }
+        }
+    }
+    response = requests.post(
+        'https://api.codeclimate.com/v1/orgs/{}/repos'.format(organization['data'][0]['id']),
+        headers={
+            'Accept': 'application/vnd.api+json',
+            'Authorization': 'Token token={}'.format(open('.cc_token').read().strip()),
+            'Content-Type': 'application/vnd.api+json'
+        }, json=payload)
+
+    import pprint
+    pprint.pprint(response.json())
+
+
+def setup_github_repository(repository_name, github_token):
+    git = Github(github_token)
     company = git.get_organization("theiconic")
 
-    repo = create_repo(company, repo_name)
-    master = repo.get_branch('master')
+    repository = create_repo(company, repository_name)
 
+    master = repository.get_branch('master')
     master.edit_protection(
         dismiss_stale_reviews=True,
         required_approving_review_count=1
     )
+
+    return repository
+
+
+def setup_codeclimate_repository(repository):
+    cc_org = get_codeclimate_organization()
+    add_repo_to_codeclimate(cc_org, repository)
+
+
+@click.command()
+@click.argument('repository-name')
+@click.option('--github-token', envvar='GITHUB_TOKEN')
+@click.option('--enable-code-climate', is_flag=True)
+@click.option('--code-climate-token', envvar='CODE_CLIMATE_TOKEN')
+def run(repository_name, enable_code_climate, github_token, code_climate_token):
+    """
+    Manage github repositories using command line
+    """
+    repository = setup_github_repository(repository_name, github_token)
+
+    if enable_code_climate:
+        setup_codeclimate_repository(repository, code_climate_token)
 
 
 if __name__ == '__main__':
