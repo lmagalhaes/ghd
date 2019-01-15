@@ -1,8 +1,7 @@
 from github import Github
 from github.GithubException import UnknownObjectException
-import requests
 import click
-
+from ghd.clients import CodeClimate
 
 ### github related
 available_teams_list = {
@@ -48,37 +47,6 @@ def get_teams_permission(teams):
     ]
 
 
-### codeclimate related
-def get_codeclimate_organization():
-    response = requests.get('https://api.codeclimate.com/v1/orgs', headers={
-        'Accept': 'application/vnd.api+json',
-        'Authorization': 'Token token={}'.format(open('.cc_token').read().strip())
-    })
-
-    return response.json()
-
-
-def add_repo_to_codeclimate(organization, repo):
-    payload = {
-        "data": {
-            "type": "repos",
-            "attributes": {
-                "url": repo.svn_url
-            }
-        }
-    }
-    response = requests.post(
-        'https://api.codeclimate.com/v1/orgs/{}/repos'.format(organization['data'][0]['id']),
-        headers={
-            'Accept': 'application/vnd.api+json',
-            'Authorization': 'Token token={}'.format(open('.cc_token').read().strip()),
-            'Content-Type': 'application/vnd.api+json'
-        }, json=payload)
-
-    import pprint
-    pprint.pprint(response.json())
-
-
 def setup_github_repository(repository_name, github_token):
     git = Github(github_token)
     company = git.get_organization("theiconic")
@@ -94,9 +62,14 @@ def setup_github_repository(repository_name, github_token):
     return repository
 
 
-def setup_codeclimate_repository(repository):
-    cc_org = get_codeclimate_organization()
-    add_repo_to_codeclimate(cc_org, repository)
+def setup_codeclimate_repository(code_climate_token, repository):
+    client = CodeClimate(api_token=code_climate_token)
+
+    organizations = client.get_organizartions()
+    repository_info = client.add_private_repository(
+        organization_id=organizations[0]['id'],
+        repository_url=repository.svn_url
+    )
 
 
 @click.command()
@@ -111,7 +84,7 @@ def run(repository_name, enable_code_climate, github_token, code_climate_token):
     repository = setup_github_repository(repository_name, github_token)
 
     if enable_code_climate:
-        setup_codeclimate_repository(repository, code_climate_token)
+        setup_codeclimate_repository(code_climate_token, repository)
 
 
 if __name__ == '__main__':
