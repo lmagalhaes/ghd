@@ -65,7 +65,7 @@ def setup_github_repository(repository_name, github_token):
 def setup_codeclimate_repository(code_climate_token, repository):
     client = CodeClimate(api_token=code_climate_token)
 
-    organizations = client.get_organizartions()
+    organizations = client.get_organizations()
     repository_info = client.add_private_repository(
         organization_id=organizations[0]['id'],
         repository_url=repository.svn_url
