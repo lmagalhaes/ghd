@@ -17,7 +17,7 @@ class CodeClimate:
             'Authorization': 'Token token={}'.format(self._api_token)
         }
 
-    def get_organizartions(self):
+    def get_organizations(self):
         uri = self._build_uri('v1/orgs')
         headers = self._get_base_header()
         response = requests.get(uri, headers=headers)
